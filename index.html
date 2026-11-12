@@ -1,0 +1,301 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Planilha Almoxarifado</title>
+<style>
+:root{--bg:#f4f5f7;--card:#fff;--ink:#1d2330;--mut:#6b7385;--line:#e2e5ec;--head:#666;--acc:#1f6feb;--ok:#1a9d58;--flash:#fff3b0;--sec:#e9ecf2}
+@media (prefers-color-scheme:dark){:root{--bg:#14171d;--card:#1c2029;--ink:#e8ebf2;--mut:#9099ad;--line:#2c3240;--head:#3b4252;--acc:#5b9dff;--ok:#3ec97f;--flash:#5a4d12;--sec:#262c38}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.4 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+header{position:sticky;top:0;z-index:20;background:var(--card);border-bottom:1px solid var(--line);padding:10px 16px;display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+h1{font-size:17px;margin:0;margin-right:auto}
+.chip{font-size:12px;padding:3px 9px;border-radius:99px;background:var(--sec);color:var(--mut);display:inline-flex;gap:6px;align-items:center}
+.chip i{width:8px;height:8px;border-radius:50%;background:var(--mut)}
+.chip.on i{background:var(--ok)}
+input[type=search],input.txt{padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font:inherit}
+button{font:inherit;padding:7px 12px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink);cursor:pointer}
+button:hover{border-color:var(--acc)}
+button.danger:hover{border-color:#d33;color:#d33}
+main{padding:12px 16px 80px;max-width:1100px;margin:0 auto}
+.wrap{background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:auto;max-height:calc(100vh - 120px)}
+table{border-collapse:separate;border-spacing:0;width:100%;min-width:760px}
+thead th{position:sticky;top:0;z-index:5;background:var(--head);color:#fff;padding:8px 6px;font-size:12px;letter-spacing:.04em;text-align:center}
+thead th:nth-child(-n+2){text-align:left}
+td{padding:2px 6px;border-bottom:1px solid var(--line);white-space:nowrap}
+td.code{color:var(--mut);font-size:12px;width:110px}
+td.desc{white-space:normal;min-width:220px}
+td.num{width:70px;padding:2px}
+td.num input{width:100%;padding:6px 4px;text-align:center;border:1px solid transparent;border-radius:6px;background:transparent;color:var(--ink);font:inherit}
+td.num input:hover{border-color:var(--line)}
+td.num input:focus{outline:2px solid var(--acc);background:var(--bg)}
+td.num input.flash{animation:fl 1.6s}
+@keyframes fl{0%,60%{background:var(--flash)}100%{background:transparent}}
+td.tot{width:80px;text-align:center;font-weight:700}
+tr.sec td{background:var(--sec);font-weight:700;cursor:pointer;padding:8px 10px;position:sticky}
+tr.sec .arrow{display:inline-block;width:16px;transition:transform .15s}
+tr.sec.closed .arrow{transform:rotate(-90deg)}
+tr.add td{padding:4px 10px}
+tr.add button{font-size:12px;padding:3px 8px;color:var(--mut)}
+.x{border:0;background:none;color:var(--mut);padding:0 4px}
+dialog{border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--ink);max-width:520px;width:92%}
+dialog::backdrop{background:#0006}
+dialog label{display:block;margin:10px 0 4px;font-size:12px;color:var(--mut)}
+dialog input.txt{width:100%}
+.row{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
+#log div{padding:6px 0;border-bottom:1px solid var(--line);font-size:13px}
+#log small{color:var(--mut)}
+#login{max-width:340px;margin:12vh auto;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:24px}
+#login input{width:100%;margin:6px 0 10px}
+.hide{display:none!important}
+.banner{background:var(--flash);padding:8px 16px;font-size:13px;text-align:center;color:#222}
+@media (prefers-color-scheme:dark){.banner{color:#fff}}
+</style>
+</head>
+<body>
+
+<!-- ===================== CONFIGURAÇÃO ===================== -->
+<script>
+// 1) Cole aqui o objeto firebaseConfig do seu projeto Firebase (veja o LEIA-ME).
+//    Enquanto estiver null, a página funciona em MODO TESTE (dados só neste navegador).
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyCHlv1Aug7R31EJtPz6Yk1jlXYNYj1f_vk",
+  authDomain: "almoxarifado-f63f7.firebaseapp.com",
+  databaseURL: "https://almoxarifado-f63f7-default-rtdb.firebaseio.com",
+  projectId: "almoxarifado-f63f7",
+  storageBucket: "almoxarifado-f63f7.firebasestorage.app",
+  messagingSenderId: "223486147580",
+  appId: "1:223486147580:web:d74dde68eed43358045079"
+};
+/* exemplo:
+const FIREBASE_CONFIG = {
+  apiKey: "...", authDomain: "...", databaseURL: "https://SEU-PROJETO-default-rtdb.firebaseio.com",
+  projectId: "...", appId: "..."
+};
+*/
+// 2) true = exige login (e-mail/senha criados por você no Firebase). false = qualquer pessoa com o link edita.
+const REQUIRE_LOGIN = false;
+</script>
+
+<div id="banner" class="banner hide">Modo teste: os dados ficam só neste navegador. Configure o Firebase para compartilhar em tempo real (veja o LEIA-ME).</div>
+
+<div id="login" class="hide">
+  <h2 style="margin-top:0">Almoxarifado</h2>
+  <input class="txt" id="lemail" type="email" placeholder="E-mail" autocomplete="username">
+  <input class="txt" id="lpass" type="password" placeholder="Senha" autocomplete="current-password">
+  <button id="lgo" style="width:100%">Entrar</button>
+  <p id="lerr" style="color:#d33;font-size:13px"></p>
+</div>
+
+<div id="app" class="hide">
+<header>
+  <h1>PLANILHA ALMOXARIFADO</h1>
+  <span class="chip" id="status"><i></i><span>conectando…</span></span>
+  <input type="search" id="q" placeholder="Buscar item ou código…">
+  <button id="bLog">Histórico</button>
+  <button id="bCsv">Baixar CSV</button>
+  <button id="bWeek" class="danger">Nova semana</button>
+</header>
+<main><div class="wrap"><table>
+  <thead><tr><th>CÓDIGO</th><th>DESCRIÇÃO</th><th>SEG</th><th>TER</th><th>QUA</th><th>QUI</th><th>SEX</th><th>SÁB</th><th>TOTAL</th></tr></thead>
+  <tbody id="tb"></tbody>
+</table></div></main>
+</div>
+
+<dialog id="dAdd"><form method="dialog" id="fAdd">
+  <h3 style="margin:0" id="dAddT">Novo item</h3>
+  <label>Código</label><input class="txt" id="aCode" placeholder="ex: 12345 – CD">
+  <label>Descrição</label><input class="txt" id="aDesc" required>
+  <div class="row"><button type="button" id="aCancel">Cancelar</button><button id="aOk" style="background:var(--acc);color:#fff;border-color:var(--acc)">Adicionar</button></div>
+</form></dialog>
+
+<dialog id="dLog"><h3 style="margin:0 0 8px">Últimas alterações</h3><div id="log" style="max-height:60vh;overflow:auto"></div>
+  <div class="row"><button id="lClose">Fechar</button></div></dialog>
+
+<script>
+const SEED = {"sections": [{"name": "CONSERVAÇÃO E LIMPEZA", "items": [{"id": "r4", "code": "11049 – CD", "desc": "ALCOOL GEL 5L"}, {"id": "r5", "code": "11056 – CD", "desc": "ALCOOL LIQ 1L (12 min)"}, {"id": "r6", "code": "14059 – CD", "desc": "DISCO BRANCO MÁQUINA LIMPEZA 410M"}, {"id": "r7", "code": "27508-CD", "desc": "DISCO BRANCO MÁQUINA LIMPEZA 510M"}, {"id": "r8", "code": "13291 – CD", "desc": "MOP ALGODÃO REFIL (BRUXA)"}, {"id": "r9", "code": "82247 – FORN", "desc": "SACO DE LIXO BIO 150L"}, {"id": "r10", "code": "13309 – FORN", "desc": "PANO AZUL LIMPEZA"}]}, {"name": "KOMPRAO", "items": [{"id": "r28", "code": "13593-FORN", "desc": "SABONETE ALMOX USO CLIENTE UN"}, {"id": "r29", "code": "13314-FORN", "desc": "PAPEL HIG ALMOX ROLÃO UN"}, {"id": "r30", "code": "29476-FORN", "desc": "PAPEL TOALHA ALMOX UN"}]}, {"name": "FRENTE DE CAIXA", "items": [{"id": "r38", "code": "43819 – CD", "desc": "BOBINA FRENTE CAIXA"}, {"id": "r39", "code": "31163 – CD", "desc": "BOBINA PONTO"}, {"id": "r40", "code": "12519 – CD", "desc": "ELÁSTICO DINHEIRO"}, {"id": "r41", "code": "13318 – CD", "desc": "PAPEL PRESENTE 40CM"}, {"id": "r42", "code": "13321 – CD", "desc": "PAPEL PRESENTE 60CM"}]}, {"name": "SACOLAS", "items": [{"id": "r50", "code": "74040 – CD", "desc": "SACOLA KOMPRAO BIO"}, {"id": "r51", "code": "26909 – CD", "desc": "SACOLA KOMPRAO DIA LOKÃO"}, {"id": "r52", "code": "67663- CD", "desc": "SACOLA KOMPRAO SELF BIO"}, {"id": "r56", "code": "3927 – CD", "desc": "SACOLA ELETRO BRANCA"}]}, {"name": "LOJA/RM/PREVENÇÃO", "items": [{"id": "r60", "code": "70151 – CD", "desc": "ABRAÇADEIRA (ENFORCA GATO)"}, {"id": "r61", "code": "13371 – CD", "desc": "CANETÃO AZUL"}, {"id": "r62", "code": "13378 – CD", "desc": "CANETÃO VERMELHO"}, {"id": "r63", "code": "14003 – CD", "desc": "FORRAÇÃO KOMPRÃO"}, {"id": "r64", "code": "1699 – CD", "desc": "FORRAÇÃO AO AO AO"}, {"id": "r65", "code": "3914-EMAIL", "desc": "FITA PRENSA"}, {"id": "r66", "code": "13742 – CD", "desc": "TINTA CARIMBO"}, {"id": "r67", "code": "12877 – CD", "desc": "GRAMPO ROCAMA"}, {"id": "r68", "code": "47180 – CD", "desc": "LACRE NUMERADO ALCORA"}, {"id": "r69", "code": "82000 – CD", "desc": "STRETCH (Min30)"}]}, {"name": "ETIQUETAS E CARTAZES", "items": [{"id": "r73", "code": "38292 – CD", "desc": "ETIQUETA ALERTA (CARTAZ)"}, {"id": "r74", "code": "68341– CD", "desc": "ETIQUETA BCO/VERM"}, {"id": "r75", "code": "68344 – CD", "desc": "ETIQUETA BRANCA"}, {"id": "r76", "code": "72831 – CD", "desc": "ETIQUETA VALIDADE ROSA"}, {"id": "r77", "code": "14098 – CD", "desc": "ETIQUETA P/ETIQUETAR PREVENÇÃO"}, {"id": "r78", "code": "12613– CD", "desc": "ETIQUETA P/ETIQUETAR KOMPRAO"}, {"id": "r79", "code": "75042 – CD", "desc": "CARTAZ AMARELO A4"}, {"id": "r80", "code": "38204 – CD", "desc": "CARTAZ AMARELO 60X80 NORMAL"}, {"id": "r81", "code": "38206 – CD", "desc": "CARTAZ ALMOX KP FDS LOKAO"}, {"id": "r82", "code": "70289-CD", "desc": "CTZ ALMOX KP GONDOLA A5 OFERTA"}, {"id": "r83", "code": "70295-CD", "desc": "CTZ A4 HORIZ OFERTA"}, {"id": "r84", "code": "38207-CD", "desc": "CTZ A3 AMARELO"}, {"id": "r85", "code": "12269-CD", "desc": "CTZ A3 BRANCO"}, {"id": "r86", "code": "74604-CD", "desc": "CTZ HORTI A4 OFERTA VERTICAL"}, {"id": "r87", "code": "78094-CD", "desc": "CTZ AMARELO A3 OFERTA VERTICAL"}]}, {"name": "AÇOUGUE/HORTI", "items": [{"id": "r102", "code": "57583-CD", "desc": "BAND S/ABS CR002 ROSA"}, {"id": "r103", "code": "47052 – CD", "desc": "BAND C/ABS CFA03 PRETA"}, {"id": "r104", "code": "29465 – CD", "desc": "BAND S/ABS CF03 PRETA"}, {"id": "r105", "code": "29466 – CD", "desc": "BAND S/ABS CF04 PRETA"}, {"id": "r106", "code": "57584 – CD", "desc": "BAND S/ABS CR004 ROSA"}, {"id": "r107", "code": "29467 – CD", "desc": "BAND S/ABS CR05 PRETA"}, {"id": "r108", "code": "70398 – CD", "desc": "BAND S/ABS CR005 ROSA"}, {"id": "r109", "code": "3355 – CD", "desc": "ABSORVENTE DRILOC"}, {"id": "r110", "code": "82249 – FORN", "desc": "EMBALAGEM P/FRANGO 60litros"}, {"id": "r111", "code": "82250 – FORN", "desc": "EMBALAGEM P/FRANGO 20litros"}, {"id": "r112", "code": "3508 – CD", "desc": "EMBALAGEM BOBINA HORTI FRUTI 34x50"}, {"id": "r113", "code": "12572 – CD", "desc": "ETIQUETA BALANÇA NUTRI 60X80"}, {"id": "r114", "code": "12563 – CD", "desc": "ETIQUETA P/ BALANÇA PEQUENA 60X25"}, {"id": "r115", "code": "75022 – CD", "desc": "ETIQUETA MÁQUINA AÇOU"}, {"id": "r116", "code": "34270 – CD", "desc": "ETIQUETA ADS CARNE FRESCA"}, {"id": "r117", "code": "47138 – CD", "desc": "ETIQUETA ADS FAMILIAR"}, {"id": "r118", "code": "14098– CD", "desc": "ETIQUETA P/ ETIQUETADORA PREVENÇÃO"}, {"id": "r119", "code": "12613 – CD", "desc": "ETIQUETA P/ ETIQUETADORA"}, {"id": "r120", "code": "43661 – CD", "desc": "FILME MÁQUINA AÇOU"}, {"id": "r121", "code": "12675 – CD", "desc": "FILME MÁQUINA HORTI"}, {"id": "r122", "code": "77682-CD", "desc": "LAMINA SERRA 3.15M"}, {"id": "r123", "code": "13781 – CD", "desc": "TOUCAS"}]}, {"name": "LUVAS", "items": [{"id": "r129", "code": "33820-FORN", "desc": "LUVA G"}, {"id": "r130", "code": "33819-FORN", "desc": "LUVA M"}, {"id": "r131", "code": "33818-FORN", "desc": "LUVA P"}, {"id": "r132", "code": "65454 - FORN", "desc": "LUVA GG"}, {"id": "r133", "code": "13225 – CD", "desc": "MANGOTE"}]}, {"name": "PRODUTOS PROAUTOKIMIUM", "items": [{"id": "r136", "code": "75033-CD", "desc": "DETER NEUTERAX YELLOW 20L"}, {"id": "r137", "code": "45755-CD", "desc": "DETERG ALMOX RITMO TABUAS CORTE 5L"}, {"id": "r138", "code": "12297-CD", "desc": "DESINCRUS ALMOX PROAU FORNO/FORM 5L"}, {"id": "r139", "code": "12477-CD", "desc": "DETERG ALMOX CLORADO AÇOUG/PAD 5L"}, {"id": "r140", "code": "45758-CD", "desc": "DESIN ALMOX PRO GRUN FLV MULT VE1KG"}, {"id": "r141", "code": "13591-CD", "desc": "SAB ALMOX KIMI KREAM BACTERICIDA 5L"}, {"id": "r142", "code": "63546-CD", "desc": "DESINF ALMOX SUPER NV BANHEI 5L USO G"}, {"id": "r143", "code": "12485-CD", "desc": "DETER ALMOX KIMI KL MAQUINA PISO 5L"}]}, {"name": "PADARIA", "items": [{"id": "r147", "code": "3362 – CD", "desc": "ARAME P/FECHO"}, {"id": "r148", "code": "48125-CD", "desc": "ETIQUETA PADARIA(ADESIVO )"}, {"id": "r149", "code": "69540-CD", "desc": "ETIQ ALMOX BALANCA CONTINUA"}, {"id": "r150", "code": "71177-CD", "desc": "EMB ALMOX PAO C/VIS 3KG C/500 FD4 KRAFT"}, {"id": "r151", "code": "71178-CD", "desc": "EMB ALMOX PAO C/VIS 5KG C/500 FD2 KRAFT"}, {"id": "r152", "code": "26001 – CD", "desc": "EMB GA17"}, {"id": "r153", "code": "26002 – CD", "desc": "EMB GA18"}, {"id": "r154", "code": "26003 – CD", "desc": "EMB GA20"}, {"id": "r155", "code": "29264 – CD", "desc": "EMB GA10"}, {"id": "r156", "code": "3448 – CD", "desc": "EMB 25X35 MICROFURO"}, {"id": "r157", "code": "3771 – CD", "desc": "EMB 45X60 MICROFURO(ROSCA)"}, {"id": "r158", "code": "3742 – CD", "desc": "EMB 35X45 MICROFURO"}, {"id": "r159", "code": "40311-CD", "desc": "EMB ALMOX SACO PP 18X35 0.07 (GRANDE)"}, {"id": "r160", "code": "40312 – CD", "desc": "EMB SACO PP 16X30 0.07 C/500(MEDIA)"}, {"id": "r161", "code": "58444 – CD", "desc": "EMB SACO P 18X35 0.5 C/500(PEQUENA)"}, {"id": "r162", "code": "29006 – CD", "desc": "EMB PLÁSTICA FAR ROSCA"}, {"id": "r163", "code": "3436-CD", "desc": "BISTURI"}, {"id": "r164", "code": "3924-CD", "desc": "SACO CONFEITAR ALMOX DACASA"}, {"id": "r165", "code": "69540-CD", "desc": "ETIQ ALMOX BALANCA CONTINUA"}, {"id": "r166", "code": "3730-CD", "desc": "EMB ALMOX PAO FCES M FURO25X35(CAIXA)"}, {"id": "r167", "code": "3741-CD", "desc": "EMB ALMOX PAO FCES M FURO25X35(CAIXA)"}]}, {"name": "MATERIAL ESCRITÓRIO RM/RH/FC", "items": [{"id": "r172", "code": "11276 – CD", "desc": "BLOCO REQ Material"}, {"id": "r173", "code": "11846 – EMAIL", "desc": "CALCULADORA"}, {"id": "r174", "code": "12218 – CD", "desc": "CANETA AZUL"}, {"id": "r175", "code": "12287 – CD", "desc": "CLIPS"}, {"id": "r176", "code": "63370 – CD", "desc": "BLOCO ALMOX TRANS LOJAS E CD"}, {"id": "r177", "code": "12528 – CD", "desc": "ENVELOPE GRANDE"}, {"id": "r178", "code": "12530 – CD", "desc": "ENVELOPE PEQUENO"}, {"id": "r179", "code": "12681 – CD", "desc": "FITA FINA"}, {"id": "r180", "code": "12684 – CD", "desc": "FITA LARGA"}, {"id": "r181", "code": "12627 – CD", "desc": "EXTRATOR DE GRAMPO"}, {"id": "r182", "code": "12865 – CD", "desc": "GRAMPO GRAMPEADOR"}, {"id": "r183", "code": "12233 – CD", "desc": "MARCA TEXTO"}, {"id": "r184", "code": "13335 –CD", "desc": "PASTA AZUL"}, {"id": "r185", "code": "11135 – CD", "desc": "PASTA AZUL ARQUIVO MORTO"}, {"id": "r186", "code": "13425 – CD", "desc": "PRANCHETA"}, {"id": "r187", "code": "32371 –CD", "desc": "TESOURA"}, {"id": "r188", "code": "14110 – CD", "desc": "DISPLAY ALMOX MULTIUSO"}, {"id": "r189", "code": "73562– USO INT", "desc": "FOLHA SULFIT 500"}]}, {"name": "MP – TRANSFERÊNCIA PARA PRODUÇÃO", "items": [{"id": "r194", "code": "34806", "desc": "DESMOLDANTE BAKELS 5L"}, {"id": "r195", "code": "70800", "desc": "RECH BAUNILHA BAKELS 4KG"}, {"id": "r196", "code": "75421", "desc": "CREME BRIGADEIRO BAKELS 4KG"}, {"id": "r197", "code": "45308", "desc": "AÇÚCAR GELADO BAKELS 1KG"}, {"id": "r198", "code": "4048", "desc": "AÇÚCAR CRISTAL DACASA 2KG"}, {"id": "r199", "code": "573", "desc": "GOIABADA CREMOSA PREDRILECTA 2,5KG"}, {"id": "r200", "code": "4439", "desc": "DOCE DE LEITE BALDE 9,8KG"}, {"id": "r201", "code": "72392", "desc": "CREME CONFEITEIRA ORQUIDEA PC 1KG"}, {"id": "r202", "code": "80980", "desc": "RECH LEITINHO XAMEGO 2KG"}, {"id": "r203", "code": "4176", "desc": "CEREAL MICRO BCO/PRT 500G"}, {"id": "r204", "code": "80979", "desc": "DOURADOR EASILLY GLAZE 1L"}]}], "initial": {"r52": {"sab": 31}, "r74": {"seg": 34}, "r75": {"seg": 34}, "r79": {"seg": 3}, "r84": {"seg": 4}, "r112": {"sab": 5}}};
+const DAYS=['seg','ter','qua','qui','sex','sab'];
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+/* ---------- nome do usuário (para o histórico) ---------- */
+let who=''; try{who=localStorage.getItem('almox_who')||''}catch(e){}
+function ensureName(){ if(who) return; who=(prompt('Seu nome (aparece no histórico de alterações):')||'Anônimo').trim().slice(0,30)||'Anônimo'; try{localStorage.setItem('almox_who',who)}catch(e){} }
+
+/* ---------- adaptadores de dados ---------- */
+// Cada adaptador expõe: subscribe(cb), setCell, addExtra, delExtra, log, subscribeLog, newWeek
+function localAdapter(){
+  const K='almox_local_v1'; let st; let logs=[];
+  const load=()=>{try{st=JSON.parse(localStorage.getItem(K))}catch(e){} if(!st){st={cells:JSON.parse(JSON.stringify(SEED.initial)),extra:{},log:[]};}};
+  const save=()=>{try{localStorage.setItem(K,JSON.stringify(st))}catch(e){}};
+  load(); const subs=new Set(), lsubs=new Set();
+  const emit=()=>{subs.forEach(f=>f({cells:st.cells,extra:st.extra}));lsubs.forEach(f=>f(st.log.slice(-100).reverse()))};
+  addEventListener('storage',e=>{if(e.key===K){load();emit()}});
+  return {
+    live:false,
+    async start(){ setTimeout(emit,0) },
+    subscribe(f){subs.add(f)}, subscribeLog(f){lsubs.add(f)},
+    setCell(id,d,v){ st.cells[id]=st.cells[id]||{}; if(v===null) delete st.cells[id][d]; else st.cells[id][d]=v; save(); emit() },
+    addExtra(o){ const k='x'+Date.now().toString(36); st.extra[k]=o; save(); emit() },
+    delExtra(k){ delete st.extra[k]; delete st.cells[k]; save(); emit() },
+    log(e){ st.log.push(e); st.log=st.log.slice(-300); save(); emit() },
+    newWeek(){ st.cells={}; save(); emit() }
+  };
+}
+
+async function firebaseAdapter(){
+  const V='10.12.2', B=`https://www.gstatic.com/firebasejs/${V}/`;
+  const {initializeApp}=await import(B+'firebase-app.js');
+  const D=await import(B+'firebase-database.js');
+  const app=initializeApp(FIREBASE_CONFIG); const db=D.getDatabase(app);
+  const root=D.ref(db,'almox'); let auth=null, A=null;
+  if(REQUIRE_LOGIN){ A=await import(B+'firebase-auth.js'); auth=A.getAuth(app); }
+  const conn=D.ref(db,'.info/connected');
+  return {
+    live:true, auth, A,
+    async start(){
+      // semeia valores iniciais da planilha original na primeira vez
+      const seeded=await D.get(D.child(root,'seeded'));
+      if(!seeded.exists()){ const u={seeded:true}; for(const [id,o] of Object.entries(SEED.initial)) u['cells/'+id]=o; await D.update(root,u); }
+    },
+    onConn(f){ D.onValue(conn,s=>f(!!s.val())) },
+    subscribe(f){ D.onValue(root,s=>{const v=s.val()||{}; f({cells:v.cells||{},extra:v.extra||{}})}) },
+    subscribeLog(f){ D.onValue(D.query(D.ref(db,'almox/log'),D.limitToLast(100)),s=>{const a=[];s.forEach(c=>a.push(c.val()));f(a.reverse())}) },
+    setCell(id,d,v){ return D.set(D.ref(db,`almox/cells/${id}/${d}`),v) },
+    addExtra(o){ return D.set(D.push(D.ref(db,'almox/extra')),o) },
+    delExtra(k){ return D.update(root,{['extra/'+k]:null,['cells/'+k]:null}) },
+    log(e){ return D.push(D.ref(db,'almox/log'),e) },
+    async newWeek(){
+      const s=await D.get(D.child(root,'cells'));
+      if(s.exists()) await D.set(D.ref(db,'almox/history/'+new Date().toISOString().slice(0,10)+'_'+Date.now()),s.val());
+      await D.set(D.child(root,'cells'),null);
+    }
+  };
+}
+
+/* ---------- estado e renderização ---------- */
+let ad, state={cells:{},extra:{}}, closed={}, filter='';
+const inputs={}; // 'id|dia' -> input
+const rowTotals={};
+
+function buildSections(){
+  const secs=SEED.sections.map(s=>({key:s.name,name:s.name,items:s.items.map(i=>({...i,extra:false}))}));
+  for(const [k,e] of Object.entries(state.extra||{})){
+    let s=secs.find(x=>x.key===e.sec); if(!s){s={key:e.sec,name:e.sec,items:[]};secs.push(s)}
+    s.items.push({id:k,code:e.code||'',desc:e.desc||'',extra:true});
+  }
+  return secs;
+}
+function render(){
+  const tb=$('#tb'); const keep=document.activeElement; const focusKey=keep&&keep.dataset?keep.dataset.k:null; const val=keep&&keep.value;
+  tb.innerHTML=''; for(const k in inputs) delete inputs[k];
+  const f=filter.toLowerCase();
+  for(const sec of buildSections()){
+    const items=sec.items.filter(i=>!f||(i.code+' '+i.desc).toLowerCase().includes(f));
+    if(f&&!items.length) continue;
+    const isClosed=closed[sec.key]&&!f;
+    let h=`<tr class="sec ${isClosed?'closed':''}" data-sec="${esc(sec.key)}"><td colspan="9"><span class="arrow">▾</span>${esc(sec.name)}</td></tr>`;
+    if(!isClosed){
+      for(const it of items){
+        h+=`<tr data-id="${it.id}"><td class="code">${esc(it.code)}</td><td class="desc">${esc(it.desc)}${it.extra?` <button class="x" data-del="${it.id}" title="Remover item">✕</button>`:''}</td>`;
+        for(const d of DAYS) h+=`<td class="num"><input type="number" inputmode="decimal" step="any" data-k="${it.id}|${d}"></td>`;
+        h+=`<td class="tot" id="t_${it.id}">0</td></tr>`;
+      }
+      if(!f) h+=`<tr class="add"><td colspan="9"><button data-add="${esc(sec.key)}">+ novo item em ${esc(sec.name)}</button></td></tr>`;
+    }
+    tb.insertAdjacentHTML('beforeend',h);
+  }
+  tb.querySelectorAll('input[data-k]').forEach(i=>{inputs[i.dataset.k]=i});
+  paintValues();
+  if(focusKey&&inputs[focusKey]){inputs[focusKey].focus();inputs[focusKey].value=val}
+}
+function paintValues(flashChanged){
+  for(const [k,inp] of Object.entries(inputs)){
+    const [id,d]=k.split('|'); const v=state.cells?.[id]?.[d];
+    if(document.activeElement===inp) continue;
+    const s=v==null?'':String(v);
+    if(inp.value!==s){ inp.value=s; if(flashChanged){inp.classList.remove('flash');void inp.offsetWidth;inp.classList.add('flash')} }
+  }
+  for(const it of document.querySelectorAll('tr[data-id]')) updTotal(it.dataset.id);
+}
+function updTotal(id){
+  let t=0; for(const d of DAYS){const i=inputs[id+'|'+d]; if(i){t+=parseFloat(i.value)||0}}
+  const el=document.getElementById('t_'+id); if(el) el.textContent=Math.round(t*1000)/1000;
+}
+const timers={};
+function descOf(id){ for(const s of buildSections()) for(const i of s.items) if(i.id===id) return i.desc; return id }
+function onInput(e){
+  const inp=e.target; if(!inp.dataset.k) return;
+  const [id,d]=inp.dataset.k.split('|'); updTotal(id);
+  clearTimeout(timers[inp.dataset.k]);
+  timers[inp.dataset.k]=setTimeout(()=>commit(inp),350);
+}
+function commit(inp){
+  ensureName(); const [id,d]=inp.dataset.k.split('|');
+  const raw=inp.value.trim(); const v=raw===''?null:parseFloat(raw);
+  if(raw!==''&&isNaN(v)) return;
+  if(((state.cells?.[id]?.[d])??null)===v) return;
+  state.cells[id]=state.cells[id]||{}; if(v===null) delete state.cells[id][d]; else state.cells[id][d]=v;
+  ad.setCell(id,d,v);
+  ad.log({t:Date.now(),u:who,item:descOf(id),d,v});
+}
+
+/* ---------- eventos de interface ---------- */
+document.addEventListener('input',onInput);
+document.addEventListener('focusout',e=>{ if(e.target.dataset&&e.target.dataset.k){clearTimeout(timers[e.target.dataset.k]);commit(e.target);paintValues()} });
+document.addEventListener('keydown',e=>{
+  if(!(e.target.dataset&&e.target.dataset.k)) return;
+  const [id,d]=e.target.dataset.k.split('|'); const rows=[...document.querySelectorAll('tr[data-id]')]; const ri=rows.findIndex(r=>r.dataset.id===id);
+  let n=null;
+  if(e.key==='Enter'||e.key==='ArrowDown') n=rows[ri+1]&&inputs[rows[ri+1].dataset.id+'|'+d];
+  else if(e.key==='ArrowUp') n=rows[ri-1]&&inputs[rows[ri-1].dataset.id+'|'+d];
+  if(n){e.preventDefault();n.focus();n.select()}
+});
+$('#tb').addEventListener('click',e=>{
+  const s=e.target.closest('tr.sec'); if(s){closed[s.dataset.sec]=!closed[s.dataset.sec];render();return}
+  const a=e.target.closest('[data-add]'); if(a){openAdd(a.dataset.add);return}
+  const x=e.target.closest('[data-del]'); if(x&&confirm('Remover este item adicionado por vocês?')) ad.delExtra(x.dataset.del);
+});
+$('#q').addEventListener('input',e=>{filter=e.target.value.trim();render()});
+let addSec='';
+function openAdd(sec){addSec=sec;$('#dAddT').textContent='Novo item – '+sec;$('#aCode').value='';$('#aDesc').value='';$('#dAdd').showModal();$('#aDesc').focus()}
+$('#aCancel').onclick=()=>$('#dAdd').close();
+$('#fAdd').addEventListener('submit',()=>{const d=$('#aDesc').value.trim(); if(d) ad.addExtra({sec:addSec,code:$('#aCode').value.trim(),desc:d})});
+$('#bWeek').onclick=async()=>{ if(confirm('Iniciar NOVA SEMANA?\n\nTodos os valores serão zerados (uma cópia fica salva no histórico do Firebase).')){ await ad.newWeek(); } };
+$('#bCsv').onclick=()=>{
+  const rows=[['Seção','Código','Descrição','SEG','TER','QUA','QUI','SEX','SÁB','TOTAL']];
+  for(const s of buildSections()) for(const i of s.items){ const c=state.cells?.[i.id]||{}; const v=DAYS.map(d=>c[d]??''); rows.push([s.name,i.code,i.desc,...v,v.reduce((a,b)=>a+(+b||0),0)]); }
+  const csv='﻿'+rows.map(r=>r.map(x=>`"${String(x).replace(/"/g,'""')}"`).join(';')).join('\r\n');
+  const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'})); a.download='almoxarifado_'+new Date().toISOString().slice(0,10)+'.csv'; a.click();
+};
+$('#bLog').onclick=()=>$('#dLog').showModal(); $('#lClose').onclick=()=>$('#dLog').close();
+const DN={seg:'SEG',ter:'TER',qua:'QUA',qui:'QUI',sex:'SEX',sab:'SÁB'};
+function paintLog(list){ $('#log').innerHTML=list.map(e=>`<div><b>${esc(e.u)}</b> · ${esc(e.item)} · ${DN[e.d]||''} → <b>${e.v==null?'(vazio)':esc(e.v)}</b><br><small>${new Date(e.t).toLocaleString('pt-BR')}</small></div>`).join('')||'<div>Nenhuma alteração ainda.</div>' }
+function setStatus(on,txt){ const c=$('#status'); c.classList.toggle('on',on); c.querySelector('span').textContent=txt }
+
+/* ---------- inicialização ---------- */
+let firstSnap=true;
+function run(){
+  $('#app').classList.remove('hide');
+  ad.subscribe(s=>{ state={cells:s.cells||{},extra:s.extra||{}}; const sig=JSON.stringify(Object.keys(state.extra)); if(firstSnap||sig!==run.sig){run.sig=sig;render()} else paintValues(true); firstSnap=false });
+  ad.subscribeLog(paintLog);
+  if(ad.live) ad.onConn(on=>setStatus(on,on?'tempo real · conectado':'sem conexão…'));
+  else {setStatus(false,'modo teste (local)');$('#banner').classList.remove('hide')}
+  ad.start();
+}
+(async()=>{
+  try{
+    if(!FIREBASE_CONFIG){ ad=localAdapter(); return run() }
+    ad=await firebaseAdapter();
+    if(REQUIRE_LOGIN){
+      $('#login').classList.remove('hide');
+      const go=async()=>{ $('#lerr').textContent=''; try{await ad.A.signInWithEmailAndPassword(ad.auth,$('#lemail').value.trim(),$('#lpass').value)}catch(e){$('#lerr').textContent='E-mail ou senha incorretos.'} };
+      $('#lgo').onclick=go; $('#lpass').addEventListener('keydown',e=>{if(e.key==='Enter')go()});
+      ad.A.onAuthStateChanged(ad.auth,u=>{ if(u){ if(!who){who=u.email.split('@')[0];try{localStorage.setItem('almox_who',who)}catch(e){}} $('#login').classList.add('hide'); if(!run.started){run.started=true;run()} } });
+    } else run();
+  }catch(err){ console.error(err); alert('Erro ao conectar ao Firebase. Verifique a configuração.\n'+err.message); }
+})();
+</script>
+</body>
+</html>
